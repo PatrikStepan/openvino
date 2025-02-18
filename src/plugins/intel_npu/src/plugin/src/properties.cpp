@@ -338,20 +338,21 @@ void Properties::registerProperties() {
     // 2.1 Metrics for Plugin-only (or those which need to be handled differently)
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
-        REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
+        REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _optimizationCapabilities);
         REGISTER_SIMPLE_METRIC(
             ov::optimal_number_of_infer_requests,
             true,
             static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                 config,
                 _metrics->GetCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>())))));
-        REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
-        REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
+        REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _rangeForAsyncInferRequests);
+        REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _rangeForStreams);
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(ov::internal::caching_properties, false, _metrics->GetCachingProperties());
-        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _metrics->GetInternalSupportedProperties());
+
+        REGISTER_SIMPLE_METRIC(ov::internal::caching_properties, false, _cachingProperties);
+        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _internalSupportedProperties);
         REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
                                true,
                                _metrics->GetDeviceAllocMemSize(get_specified_device_name(config)));

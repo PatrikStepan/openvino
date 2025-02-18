@@ -60,6 +60,32 @@ private:
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
-};
 
+    const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
+                                                    ov::intel_npu::compilation_mode_params.name(),
+                                                    ov::intel_npu::compiler_dynamic_quantization.name(),
+                                                    ov::intel_npu::tiles.name(),
+                                                    ov::intel_npu::dpu_groups.name(),
+                                                    ov::intel_npu::dma_engines.name(),
+                                                    ov::intel_npu::compilation_mode.name(),
+                                                    ov::intel_npu::driver_version.name(),
+                                                    ov::intel_npu::compiler_type.name(),
+                                                    ov::intel_npu::batch_mode.name(),
+                                                    ov::hint::execution_mode.name()};
+
+    // List of properties that are used exclusively by the OpenVINO Core
+    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name()};
+
+        const std::vector<std::string> _optimizationCapabilities = {
+        ov::device::capability::FP16,
+        ov::device::capability::INT8,
+        ov::device::capability::EXPORT_IMPORT,
+    };
+
+    // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
+    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};
+
+    // Metric to provide information about a range for streams.(bottom bound, upper bound)
+    const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
+};
 }  // namespace intel_npu

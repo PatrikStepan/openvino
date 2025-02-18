@@ -27,19 +27,6 @@ std::string Metrics::GetFullDeviceName(const std::string& specifiedDeviceName) c
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
-// TODO each backend may support different optimization capabilities
-const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
-    return _optimizationCapabilities;
-}
-
-const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRequest() const {
-    return _rangeForAsyncInferRequests;
-}
-
-const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const {
-    return _rangeForStreams;
-}
-
 std::string Metrics::GetDeviceArchitecture(const std::string& specifiedDeviceName) const {
     const auto devName = getDeviceName(specifiedDeviceName);
     return utils::getPlatformByDeviceName(devName);
@@ -63,14 +50,6 @@ ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) 
     return ov::device::LUID{{
         0,
     }};
-}
-
-std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
-    return _cachingProperties;
-}
-
-std::vector<ov::PropertyName> Metrics::GetInternalSupportedProperties() const {
-    return _internalSupportedProperties;
 }
 
 std::string Metrics::GetBackendName() const {
