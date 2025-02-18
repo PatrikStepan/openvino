@@ -22,11 +22,9 @@ public:
     Metrics(const std::shared_ptr<const NPUBackends>& backends);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
-    const std::vector<std::string>& SupportedMetrics() const;
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
-    const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
@@ -51,8 +49,6 @@ public:
 
 private:
     const std::shared_ptr<const NPUBackends> _backends;
-    std::vector<std::string> _supportedMetrics;
-    std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {
         ov::device::capability::FP16,
         ov::device::capability::INT8,
