@@ -27,6 +27,7 @@
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
+#include "transformations.hpp"
 
 using namespace intel_npu;
 
@@ -736,6 +737,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    // Workaround until we support MODEL_PTR in the config as well
+    // There is no need for MODEL_PTR on the compile path, but we might receive it
+    auto it = localProperties.find("MODEL_PTR");
+    if(it != localProperties.end()){
+        std::cout << "Found model PTR. Erasing" << std::endl;
+        localProperties.erase(it);
+    }
+
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
     update_log_level(localPropertiesMap);
@@ -881,9 +890,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
+    // Remove MODEL_PTR from properties until we add support in the config
+    // We would later read the config only when weights separation was enabled
+    // Is it safe to keep a shared pointer in the config?
+    std::shared_ptr<ov::Model> ws_model;
+    ov::AnyMap localProperties = properties;
+    {
+        auto it = localProperties.find("MODEL_PTR");
+        if(it != localProperties.end()){
+            ws_model = it->second.as<std::shared_ptr<ov::Model>>();
+            localProperties.erase(it);
+        }
+    }
+
     // Drop NPUW properties if there are any
     ov::AnyMap npu_plugin_properties;
-    for (auto it = properties.begin(); it != properties.end(); ++it) {
+    for (auto it = localProperties.begin(); it != localProperties.end(); ++it) {
         if (it->first.find("NPUW") == it->first.npos) {
             npu_plugin_properties.insert(*it);
         }
@@ -935,21 +957,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
         } else {
-            uint32_t xmlSize;
-            uint32_t binSize;
+            if(!ws_model)
+                OPENVINO_THROW("Weight separation was enabled but ov::Model was not provided on import");
+
             uint32_t blobSize;
             uint32_t initBlobSize;
             std::string xml;
-
-            stream >> xmlSize;
-            xml.resize(xmlSize);
-            stream.read(xml.data(), xmlSize);
-
-            stream >> binSize;
-            ov::Tensor weightsTensor(ov::element::Type_t::u8, ov::Shape({binSize}));
-            stream.read(reinterpret_cast<char*>(weightsTensor.data()), binSize);
-
-            const std::shared_ptr<ov::Model> initModel = get_core()->read_model(xml, weightsTensor);
 
             stream >> blobSize;
             std::vector<uint8_t> blob(blobSize);
@@ -958,6 +971,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             stream >> initBlobSize;
             std::vector<uint8_t> initBlob(initBlobSize);
             stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
+
+            auto initModel = ws_model->clone();
+            runOVPasses(initModel);
 
             std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
             auto initGraph = compiler->parse(std::move(initBlob), localConfig);

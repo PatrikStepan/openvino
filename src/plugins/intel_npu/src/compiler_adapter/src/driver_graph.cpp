@@ -83,26 +83,6 @@ void DriverGraph::custom_export(std::ostream& stream,
     _zeGraphExt->getGraphBinary(initGraph->get_handle(), initBlob, initBlobPtr, initBlobSize);
     _zeGraphExt->getGraphBinary(_handle, mainBlob, mainBlobPtr, mainBlobSize);
 
-    std::stringstream xmlContent;
-    std::stringstream binContent;
-
-    ov::pass::Manager manager("SaveModel");
-    manager.register_pass<ov::pass::Serialize>(xmlContent, binContent);
-    manager.run_passes(initModel);
-
-    xmlContent.seekg(0, std::ios::end);
-    uint32_t xmlSize = static_cast<uint32_t>(xmlContent.tellp());
-    xmlContent.seekg(0, std::ios::beg);
-    binContent.seekg(0, std::ios::end);
-    uint32_t binSize = static_cast<uint32_t>(binContent.tellp());
-    binContent.seekg(0, std::ios::beg);
-
-    stream << xmlSize;
-    stream << xmlContent.rdbuf();
-
-    stream << binSize;
-    stream << binContent.rdbuf();
-
     stream << static_cast<uint32_t>(mainBlobSize);
     stream.write(reinterpret_cast<const char*>(mainBlobPtr), mainBlobSize);
 
