@@ -339,6 +339,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
 
                 auto convert_f_name = result_input.get_node()->get_friendly_name();
+                std::cout << "convert_f_name: " << convert_f_name << std::endl;
                 if (names_compatibility_mode) {
                     if (result_input.get_node()->get_output_size() > 1) {
                         convert_f_name += '.' + std::to_string(result_input.get_index());
@@ -350,6 +351,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                 } else {
                     convert_f_name += '.' + std::to_string(result_input.get_index());
                 }
+                std::cout << "convert_f_name after: " << convert_f_name << std::endl;
                 convert->set_friendly_name(convert_f_name);
 
                 result->input(0).replace_source_output(convert->output(0));
@@ -376,6 +378,7 @@ bool convert_precision(ov::pass::PassBase& pass,
     std::unordered_map<const ov::Node*, std::vector<Input<Node>>> const_to_internal_output;
 
     const auto names_compatibility_mode = f->has_rt_info("version") && f->get_rt_info<int64_t>("version") < 11;
+    std::cout << "names_compatibility_mode" << names_compatibility_mode << std::endl;
     return convert_function_precision(pass,
                                       f,
                                       type_to_fuse,
