@@ -66,6 +66,8 @@ public:
     std::size_t get_hash() const;
     std::vector<Transform> get_transformations() const;
     void detach();
+    // Hint the OS may evict pages backing any underlying original ov::op::v0::Constant.
+    void hint_evict() noexcept;
 
     struct Meta {
         ov::Shape shape;
@@ -100,6 +102,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
@@ -134,6 +137,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
@@ -161,6 +165,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
@@ -184,6 +189,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
@@ -206,6 +212,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
@@ -232,6 +239,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
+    void hint_evict() noexcept;
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:

@@ -175,6 +175,10 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         transformed.copy_to(allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
+        // Weights are now resident on the device - hint that the OS may evict
+        // pages backing the underlying original ov::Constants (mmaped weights).
+        stored_tensor.lt.hint_evict();
+
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!

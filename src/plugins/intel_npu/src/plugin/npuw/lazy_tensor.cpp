@@ -10,6 +10,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -145,6 +146,12 @@ void Const::detach() {
     m_mmaped_weights.reset();
 }
 
+void Const::hint_evict() noexcept {
+    if (m_node) {
+        ov::wsh::Extension::hint_evict(*m_node);
+    }
+}
+
 std::size_t Concat::hash() const {
     std::size_t seed = std::hash<std::size_t>()(axis) + 0x9e3779b9;
     for (auto& lt : tensors) {
@@ -183,6 +190,12 @@ void Concat::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
 void Concat::detach() {
     for (auto&& lt : tensors) {
         lt.detach();
+    }
+}
+
+void Concat::hint_evict() noexcept {
+    for (auto&& lt : tensors) {
+        lt.hint_evict();
     }
 }
 
@@ -236,6 +249,12 @@ void Unpack::detach() {
     s.detach();
 }
 
+void Unpack::hint_evict() noexcept {
+    w.hint_evict();
+    z.hint_evict();
+    s.hint_evict();
+}
+
 std::size_t Permute::hash() const {
     std::size_t seed = tensor.get_hash() + 0x9e3779b9;
     for (const auto& axis : axes) {
@@ -270,6 +289,10 @@ void Permute::detach() {
     tensor.detach();
 }
 
+void Permute::hint_evict() noexcept {
+    tensor.hint_evict();
+}
+
 std::size_t Convert::hash() const {
     std::size_t seed = type.hash() + 0x9e3779b9;
     seed ^= tensor.get_hash() + 0x9e3779b9;
@@ -295,6 +318,10 @@ void Convert::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
 
 void Convert::detach() {
     tensor.detach();
+}
+
+void Convert::hint_evict() noexcept {
+    tensor.hint_evict();
 }
 
 std::size_t Gather::hash() const {
@@ -356,6 +383,10 @@ void Gather::detach() {
     w.detach();
 }
 
+void Gather::hint_evict() noexcept {
+    w.hint_evict();
+}
+
 }  // namespace op
 
 // Stable, permanently assigned op-type IDs.
@@ -381,6 +412,7 @@ struct LazyTensorImpl {
     void get_transformations(std::vector<LazyTensor::Transform>& vec) const;
 
     void detach();
+    void hint_evict() noexcept;
 
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void serialize(ov::npuw::orc::Stream& stream);
@@ -660,6 +692,13 @@ void LazyTensorImpl::detach() {
                m_transform);
 }
 
+void LazyTensorImpl::hint_evict() noexcept {
+    std::visit(overloaded{[](auto& op) {
+                   op.hint_evict();
+               }},
+               m_transform);
+}
+
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Const(const_ptr))) {}
 LazyTensor::LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis)
@@ -745,6 +784,12 @@ std::vector<LazyTensor::Transform> LazyTensor::get_transformations() const {
 void LazyTensor::detach() {
     if (m_impl) {
         m_impl->detach();
+    }
+}
+
+void LazyTensor::hint_evict() noexcept {
+    if (m_impl) {
+        m_impl->hint_evict();
     }
 }
 
