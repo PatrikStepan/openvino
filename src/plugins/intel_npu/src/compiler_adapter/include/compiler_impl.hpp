@@ -15,6 +15,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -118,5 +119,15 @@ private:
     vcl_version_info_t _vclProfilingVersion;
     Logger _logger;
 };
+
+/**
+ * @brief Loads the VCL compiler library and returns a compiler paired with it.
+ *
+ * Keeps the load + SoPtr pairing in one place: the returned SoPtr owns the shared library, so the
+ * compiler cannot outlive the code it dispatches into.
+ */
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(
+    const std::string& libraryDir,
+    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
 
 }  // namespace intel_npu

@@ -641,4 +641,17 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     return false;
 }
 
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::string& libraryDir,
+                                        const std::optional<IDevice::DeviceProperties>& deviceProperties) {
+    auto api = VCLApi::getInstance(libraryDir);
+    OPENVINO_ASSERT(api != nullptr, "VCL API table is nullptr");
+
+    auto compiler = std::make_shared<VCLCompilerImpl>(api, deviceProperties);
+    auto vclLib = compiler->getLinkedLibrary();
+    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+
+    // Pairing the compiler with the library keeps the .so alive for as long as the compiler is.
+    return ov::SoPtr<IVCLCompiler>(compiler, vclLib);
+}
+
 }  // namespace intel_npu
