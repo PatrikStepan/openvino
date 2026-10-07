@@ -8,12 +8,13 @@
 
 namespace intel_npu {
 
-std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs) const {
+std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
+                                                  std::shared_ptr<IProfilingDecoder> profilingDecoder) const {
     OPENVINO_ASSERT(
         zeroInitStructs != nullptr,
         "Could not find an NPU device. The driver compiler requires a valid device to be present in the system.");
 
-    return std::make_unique<Parser>(zeroInitStructs);
+    return std::make_unique<Parser>(zeroInitStructs, std::move(profilingDecoder));
 }
 
 }  // namespace intel_npu

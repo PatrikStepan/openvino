@@ -26,9 +26,11 @@
 namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             ov::SoPtr<IVCLCompiler> compiler)
+                                             ov::SoPtr<IVCLCompiler> compiler,
+                                             std::shared_ptr<IProfilingDecoder> profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
       _compiler(std::move(compiler)),
+      _profilingDecoder(std::move(profilingDecoder)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
@@ -99,7 +101,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         compatibilityDescriptor,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        _profilingDecoder);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -255,8 +258,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(initNetworkMetadata),
         tensorsInits,
         std::move(model),
-        /* persistentBlob = */ true,
-        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        compatibilityDescriptor,
+        _profilingDecoder);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

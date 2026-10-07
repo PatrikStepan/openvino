@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -29,9 +30,13 @@ public:
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
      * @param compiler The compiler-in-plugin to adapt; must be non-null.
+     * @param profilingDecoder Handed to every graph this adapter builds, so that
+     *        IGraph::process_profiling_output can decode without reaching for a compiler. May be
+     *        null, in which case those graphs cannot decode profiling data.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          ov::SoPtr<IVCLCompiler> compiler);
+                          ov::SoPtr<IVCLCompiler> compiler,
+                          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
@@ -54,6 +59,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<IVCLCompiler> _compiler;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     Logger _logger;
 };

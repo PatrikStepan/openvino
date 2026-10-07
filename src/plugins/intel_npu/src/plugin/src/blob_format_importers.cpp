@@ -6,10 +6,12 @@
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
+#include "vcl_profiling_decoder.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -428,10 +430,19 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
 
     update_compiler_type_if_perf_count(m_config, backend, device_name);
 
+    // Only the compiler-in-plugin path decodes profiling through the graph: Pipeline::get_profiling_info
+    // routes CompilerType::DRIVER to the driver's own layer statistics. Building the decoder loads the
+    // VCL library, so gate it - import must keep working on a system without that library.
+    std::shared_ptr<IProfilingDecoder> profilingDecoder;
+    if (m_config.has<PERF_COUNT>() && m_config.get<PERF_COUNT>() &&
+        m_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
+        profilingDecoder = makeVCLProfilingDecoder();
+    }
+
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
     m_logger.trace("Creating the parser");
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(backend->getInitStructs());
+    auto parser = parserFactory.getParser(backend->getInitStructs(), std::move(profilingDecoder));
 
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;

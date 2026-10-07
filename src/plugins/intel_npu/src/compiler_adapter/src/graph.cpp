@@ -6,7 +6,6 @@
 
 #include <iterator>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -22,10 +21,12 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
-             const bool blobIsPersistent)
+             const bool blobIsPersistent,
+             std::shared_ptr<IProfilingDecoder> profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
+      _profilingDecoder(std::move(profilingDecoder)),
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
@@ -152,15 +153,17 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    // Built through the same factory the adapter uses, so the load and library pairing stay in one
-    // place. Profiling decode needs no compiler handle, so this does more work than necessary.
-    auto compiler = makeVCLCompiler();
-    OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
+    OPENVINO_ASSERT(_profilingDecoder != nullptr,
+                    "This graph was created without a profiling decoder, so it cannot decode profiling output. "
+                    "Profiling decode through the plugin requires NPU_PERF_COUNT to be enabled at compile or "
+                    "import time, and the compiler-in-plugin library to be available.");
+    OPENVINO_ASSERT(_blob.has_value(),
+                    "Profiling decode needs the compiled blob, which is no longer held by this graph.");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return compiler->process_profiling_output(profData, blob);
+    return _profilingDecoder->decode(profData, blob);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

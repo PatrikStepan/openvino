@@ -11,6 +11,7 @@
 #include <mutex>
 
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -20,13 +21,20 @@ namespace intel_npu {
 
 class Graph : public IGraph {
 public:
+    /**
+     * @param profilingDecoder Used by process_profiling_output. May be null, in which case this
+     *        graph cannot decode profiling data and says so when asked. The compiler-in-driver path
+     *        passes null deliberately: Pipeline::get_profiling_info decodes through the driver for
+     *        that compiler type and never reaches this graph.
+     */
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
-          const bool blobIsPersistent = false);
+          const bool blobIsPersistent = false,
+          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -74,6 +82,9 @@ protected:
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+
+    // Null when this graph was created on a path that does not decode profiling through the plugin.
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
