@@ -13,7 +13,6 @@
 
 #include "intel_npu/profiling.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/util/file_util.hpp"
 #include "vcl_error_utils.hpp"
 
 namespace intel_npu {
@@ -77,11 +76,8 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder() {
-    auto vclLoader = VCLLoader::getInstance(ov::util::path_to_string(ov::util::get_ov_lib_path()));
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-
-    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions) {
+    return std::make_shared<VCLProfilingDecoder>(std::move(functions));
 }
 
 }  // namespace intel_npu

@@ -45,31 +45,16 @@ VCLLoader::VCLLoader(const std::string& library_dir) : _logger("VCLLoader", Logg
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<const VCLLoader> VCLLoader::getInstance(const std::string& library_dir) {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+VCLLoaderHolder::VCLLoaderHolder(std::string library_dir) : _library_dir(std::move(library_dir)) {}
 
-    static std::string initialized_dir;
-    static std::shared_ptr<const VCLLoader> instance = nullptr;
-
-    if (!instance) {
-        if (library_dir.empty()) {
-            OPENVINO_THROW("VCLLoader instance has not been loaded yet, and no valid path was provided to load it.");
-        }
-        initialized_dir = library_dir;
-        // Not make_shared: the loading constructor is private so that this is the only way to load.
-        instance = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
-    } else {
-        if (!library_dir.empty() && library_dir != initialized_dir) {
-            OPENVINO_THROW("VCLLoader has already been initialized with path: '",
-                           initialized_dir,
-                           "'. Dynamic switching to a new compiler path: '",
-                           library_dir,
-                           "' in the same process is not supported.");
-        }
+std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_loader == nullptr) {
+        OPENVINO_ASSERT(!_library_dir.empty(), "Cannot load the VCL compiler library: no library directory was given");
+        // Deliberately not cached on failure: see the note on the class.
+        _loader = std::make_shared<const VCLLoader>(_library_dir);
     }
-
-    return instance;
+    return _loader->sharedFunctions();
 }
 
 }  // namespace intel_npu

@@ -13,13 +13,18 @@
 namespace intel_npu {
 
 namespace {
-// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
-// Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
-// any knowledge of how a compiler is obtained.
-ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
+// Resolves the entry points and composes the compiler-in-plugin over them, translating any failure
+// into the aborting message callers expect. Composing here, rather than inside
+// PluginCompilerAdapter, keeps the adapter free of any knowledge of how a compiler is obtained.
+//
+// This is also the only place the provider is invoked, so the library is loaded if and only if a
+// compiler-in-plugin is actually being built.
+ov::SoPtr<IVCLCompiler> makePluginCompiler(const VCLFunctionTableProvider& vclFunctions,
+                                           const std::shared_ptr<IDevice>& device,
                                            const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     try {
         return makeVCLCompiler(
+            vclFunctions(),
             device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
             optionSupportCache);
     } catch (const std::exception& vclException) {
@@ -27,6 +32,11 @@ ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& devic
     }
 }
 }  // namespace
+
+CompilerAdapterFactory::CompilerAdapterFactory(VCLFunctionTableProvider vclFunctions)
+    : _vclFunctions(std::move(vclFunctions)) {
+    OPENVINO_ASSERT(_vclFunctions != nullptr, "CompilerAdapterFactory requires a way to obtain the VCL entry points");
+}
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -46,8 +56,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
         return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                       makePluginCompiler(device, optionSupportCache),
-                                                       makeVCLProfilingDecoder());
+                                                       makePluginCompiler(_vclFunctions, device, optionSupportCache),
+                                                       makeVCLProfilingDecoder(_vclFunctions()));
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -118,8 +128,8 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         try {
             auto pluginCompiler =
                 std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                        makePluginCompiler(device, optionSupportCache),
-                                                        makeVCLProfilingDecoder());
+                                                        makePluginCompiler(_vclFunctions, device, optionSupportCache),
+                                                        makeVCLProfilingDecoder(_vclFunctions()));
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {

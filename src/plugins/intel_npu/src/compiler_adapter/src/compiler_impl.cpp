@@ -596,22 +596,15 @@ constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
 }  // namespace
 
-ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties,
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(std::shared_ptr<const VCLFunctionTable> functions,
+                                        const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                         const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    auto vclLoader = VCLLoader::getInstance(ov::util::path_to_string(ov::util::get_ov_lib_path()));
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-
-    auto compiler =
-        std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+    // No SoPtr library pairing: the compiler holds `functions`, which is an aliasing pointer into
+    // the VCLLoader, so the library already cannot be unloaded while the compiler is alive.
+    return ov::SoPtr<IVCLCompiler>(
+        std::make_shared<VCLCompilerImpl>(std::move(functions),
                                           deviceProperties,
-                                          ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
-
-    // Pairing the compiler with the library keeps the .so alive for as long as the compiler is. The
-    // compiler itself never learns that a library is involved.
-    auto vclLib = vclLoader->getLibrary();
-    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-
-    return ov::SoPtr<IVCLCompiler>(compiler, vclLib);
+                                          ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey}));
 }
 
 }  // namespace intel_npu

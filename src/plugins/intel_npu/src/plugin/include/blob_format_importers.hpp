@@ -11,6 +11,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -55,7 +56,8 @@ public:
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
                                          const std::string_view device_name,
-                                         const std::shared_ptr<ov::ICore>& core);
+                                         const std::shared_ptr<ov::ICore>& core,
+                                         const VCLFunctionTableProvider& vclFunctions);
 
     /**
      * @brief Uses the metadata of the resulted graph object to build a minimalistic OV model.

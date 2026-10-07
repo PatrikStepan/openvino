@@ -11,7 +11,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
-#include "vcl_profiling_decoder.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -53,11 +52,12 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
  */
 void update_compiler_type_if_perf_count(Config& config,
                                         const ov::SoPtr<IEngineBackend>& backend,
-                                        const std::string_view device_name) {
+                                        const std::string_view device_name,
+                                        const VCLFunctionTableProvider& vclFunctions) {
     if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
         config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         ov::intel_npu::CompilerType compilerType = config.get<COMPILER_TYPE>();
-        CompilerAdapterFactory factory;
+        CompilerAdapterFactory factory{vclFunctions};
         (void)factory.getCompiler(backend, compilerType, device_name);
 
         config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType));
@@ -414,7 +414,8 @@ IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>&
 std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                                           const std::string_view network_name,
                                                           const std::string_view device_name,
-                                                          const std::shared_ptr<ov::ICore>& core) {
+                                                          const std::shared_ptr<ov::ICore>& core,
+                                                          const VCLFunctionTableProvider& vclFunctions) {
     OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImporter", "create_graph");
     m_logger.debug("Creating a graph");
 
@@ -428,21 +429,18 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
 
-    update_compiler_type_if_perf_count(m_config, backend, device_name);
+    update_compiler_type_if_perf_count(m_config, backend, device_name, vclFunctions);
 
     // Only the compiler-in-plugin path decodes profiling through the graph: Pipeline::get_profiling_info
-    // routes CompilerType::DRIVER to the driver's own layer statistics. Building the decoder loads the
-    // VCL library, so gate it - import must keep working on a system without that library.
-    std::shared_ptr<IProfilingDecoder> profilingDecoder;
-    if (m_config.has<PERF_COUNT>() && m_config.get<PERF_COUNT>() &&
-        m_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        profilingDecoder = makeVCLProfilingDecoder();
-    }
+    // routes CompilerType::DRIVER to the driver's own layer statistics. Resolving the entry points loads
+    // the VCL library, so gate it - import must keep working on a system without that library.
+    const bool withProfilingDecoder = m_config.has<PERF_COUNT>() && m_config.get<PERF_COUNT>() &&
+                                      m_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN;
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
     m_logger.trace("Creating the parser");
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(backend->getInitStructs(), std::move(profilingDecoder));
+    auto parser = parserFactory.getParser(backend->getInitStructs(), withProfilingDecoder, vclFunctions);
 
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;

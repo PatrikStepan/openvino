@@ -39,15 +39,12 @@ private:
 };
 
 /**
- * @brief Loads the VCL compiler library and returns a profiling decoder backed by it.
+ * @brief Builds a profiling decoder over the given VCL entry points.
  *
- * Kept next to makeVCLCompiler() so that the knowledge of how the library is obtained stays in one
- * place. The returned decoder holds the function table as an aliasing pointer, which keeps the
- * library alive without a separate pairing.
- *
- * @note Loading is the expensive part - constructing the decoder itself is just storing a pointer -
- *       so callers that may not need profiling at all should decide before calling this.
+ * @note Obtaining the entry points is the expensive part, because it may load the library;
+ *       constructing the decoder is just storing a pointer. Callers that may not need profiling at
+ *       all should therefore decide before resolving a table to pass here.
  */
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder();
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
 
 }  // namespace intel_npu
